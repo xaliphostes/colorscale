@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js ColorScale Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 250px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        label {
+            font-weight: bold;
+            color: #ccc;
+            font-size: 12px;
+            min-width: 80px;
+        }
+        
+        input, select, button {
+            padding: 5px 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #333;
+            color: white;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+        
+        #threejs-canvas {
+            display: block;
+            cursor: grab;
+        }
+        
+        #threejs-canvas:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="threejs-canvas"></canvas>
+        
+        <div class="controls">
+            <h3 style="margin: 0 0 15px 0; color: #fff;">3D Scene Controls</h3>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Animation:</label>
+                    <button id="toggleAnimation">Start Animation</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Geometry:</label>
+                    <select id="geometryType">
+                        <option value="sphere">Sphere</option>
+                        <option value="cube">Cube</option>
+                        <option value="torus">Torus</option>
+                        <option value="plane">Plane</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Material:</label>
+                    <select id="materialType">
+                        <option value="height">Height-based</option>
+                        <option value="normal">Normal-based</option>
+                        <option value="wireframe">Wireframe</option>
+                    </select>
+                </div>
+            </div>
+            
+            <hr style="border: 1px solid #555; margin: 15px 0;">
+            
+            <h4 style="margin: 0 0 10px 0; color: #fff;">ColorScale Controls</h4>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Position:</label>
+                    <select id="scalePosition">
+                        <option value="top-right">Top Right</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="bottom-right">Bottom Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Orientation:</label>
+                    <select id="scaleOrientation">
+                        <option value="vertical">Vertical</option>
+                        <option value="horizontal">Horizontal</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Min Value:</label>
+                    <input type="number" id="minValue" value="-2.0" step="0.1" style="width: 60px;">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Max Value:</label>
+                    <input type="number" id="maxValue" value="2.0" step="0.1" style="width: 60px;">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Attribute:</label>
+                    <input type="text" id="attributeName" value="Height (m)" style="width: 100px;">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label>Color Scheme:</label>
+                    <select id="colorScheme">
+                        <option value="viridis">Viridis</option>
+                        <option value="plasma">Plasma</option>
+                        <option value="coolwarm">Cool-Warm</option>
+                        <option value="rainbow">Rainbow</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <button id="updateColorScale">Update ColorScale</button>
+                <button id="toggleColorScale">Toggle Visibility</button>
+            </div>
+        </div>
+        
+        <div class="info">
+            <strong>Instructions:</strong><br>
+            • Mouse: Rotate camera<br>
+            • Wheel: Zoom in/out<br>
+            • Right-click + drag: Pan<br>
+            • ColorScale overlays perfectly on 3D WebGL rendering
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module">
+        // Import the existing ColorScale class
+        import { ColorScale } from './js/ColorScale.js';
+
+        // Color schemes
+        const colorSchemes = {
+            viridis: [
+                { position: 0, color: '#440154' },
+                { position: 0.2, color: '#3b528b' },
+                { position: 0.4, color: '#21918c' },
+                { position: 0.6, color: '#5dc863' },
+                { position: 0.8, color: '#b5de2b' },
+                { position: 1, color: '#fde725' }
+            ],
+            plasma: [
+                { position: 0, color: '#0d0887' },
+                { position: 0.3, color: '#7201a8' },
+                { position: 0.6, color: '#bd3786' },
+                { position: 0.8, color: '#f0605d' },
+                { position: 1, color: '#f89441' }
+            ],
+            coolwarm: [
+                { position: 0, color: '#3b4cc0' },
+                { position: 0.25, color: '#6794cf' },
+                { position: 0.5, color: '#ddd9d9' },
+                { position: 0.75, color: '#d67a5c' },
+                { position: 1, color: '#b40426' }
+            ],
+            rainbow: [
+                { position: 0, color: '#440154' },
+                { position: 0.17, color: '#3b528b' },
+                { position: 0.33, color: '#21918c' },
+                { position: 0.5, color: '#5dc863' },
+                { position: 0.67, color: '#b5de2b' },
+                { position: 0.83, color: '#fde725' },
+                { position: 1, color: '#f89441' }
+            ]
+        };
+
+        class ThreeJSDemo {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.mesh = null;
+                this.animationId = null;
+                this.isAnimating = false;
+                this.colorScale = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupThreeJS();
+                this.createScene();
+                this.setupColorScale();
+                this.setupControls();
+                this.setupEventListeners();
+                this.render();
+            }
+
+            setupThreeJS() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a1a1a);
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 0, 5);
+
+                // Renderer
+                const canvas = document.getElementById('threejs-canvas');
+                this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(1, 1, 1);
+                this.scene.add(directionalLight);
+            }
+
+            createScene() {
+                this.createGeometry('sphere');
+                this.updateMaterial('height');
+            }
+
+            createGeometry(type) {
+                // Remove existing mesh
+                if (this.mesh) {
+                    this.scene.remove(this.mesh);
+                }
+
+                let geometry;
+                switch (type) {
+                    case 'sphere':
+                        geometry = new THREE.SphereGeometry(1.5, 64, 32);
+                        break;
+                    case 'cube':
+                        geometry = new THREE.BoxGeometry(2, 2, 2, 32, 32, 32);
+                        break;
+                    case 'torus':
+                        geometry = new THREE.TorusGeometry(1.2, 0.4, 16, 100);
+                        break;
+                    case 'plane':
+                        geometry = new THREE.PlaneGeometry(3, 3, 64, 64);
+                        break;
+                    default:
+                        geometry = new THREE.SphereGeometry(1.5, 64, 32);
+                }
+
+                // Create material - start with basic material
+                const material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.scene.add(this.mesh);
+
+                // Update material based on current selection
+                const materialType = document.getElementById('materialType').value;
+                this.updateMaterial(materialType);
+            }
+
+            updateMaterial(type) {
+                if (!this.mesh) return;
+
+                let material;
+                switch (type) {
+                    case 'height':
+                        this.applyHeightBasedColors();
+                        material = new THREE.MeshPhongMaterial({
+                            vertexColors: true,
+                            side: THREE.DoubleSide
+                        });
+                        break;
+                    case 'normal':
+                        material = new THREE.MeshNormalMaterial();
+                        break;
+                    case 'wireframe':
+                        material = new THREE.MeshBasicMaterial({ 
+                            color: 0x00ff88, 
+                            wireframe: true 
+                        });
+                        break;
+                    default:
+                        material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+                }
+
+                this.mesh.material = material;
+            }
+
+            applyHeightBasedColors() {
+                if (!this.mesh) return;
+
+                const geometry = this.mesh.geometry;
+                const positionAttribute = geometry.getAttribute('position');
+                const vertexCount = positionAttribute.count;
+
+                // Get height range for normalization
+                let minHeight = Infinity;
+                let maxHeight = -Infinity;
+                
+                for (let i = 0; i < vertexCount; i++) {
+                    const y = positionAttribute.getY(i);
+                    minHeight = Math.min(minHeight, y);
+                    maxHeight = Math.max(maxHeight, y);
+                }
+
+                // Create color array
+                const colors = new Float32Array(vertexCount * 3);
+                
+                for (let i = 0; i < vertexCount; i++) {
+                    const y = positionAttribute.getY(i);
+                    const normalizedHeight = (y - minHeight) / (maxHeight - minHeight);
+                    
+                    // Get color from ColorScale or use viridis mapping
+                    const color = this.getColorForValue(normalizedHeight);
+                    
+                    colors[i * 3] = color.r;     // R
+                    colors[i * 3 + 1] = color.g; // G  
+                    colors[i * 3 + 2] = color.b; // B
+                }
+
+                // Set colors to geometry
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                geometry.computeVertexNormals();
+            }
+
+            getColorForValue(normalizedValue) {
+                // Get current color scheme from UI
+                const colorScheme = document.getElementById('colorScheme').value;
+                const scheme = colorSchemes[colorScheme];
+
+                // Find the two colors to interpolate between
+                let color1 = scheme[0];
+                let color2 = scheme[scheme.length - 1];
+                
+                for (let i = 0; i < scheme.length - 1; i++) {
+                    if (normalizedValue >= scheme[i].position && normalizedValue <= scheme[i + 1].position) {
+                        color1 = scheme[i];
+                        color2 = scheme[i + 1];
+                        break;
+                    }
+                }
+
+                // Linear interpolation
+                const t = (normalizedValue - color1.position) / (color2.position - color1.position);
+                
+                // Convert hex to RGB
+                const rgb1 = this.hexToRgb(color1.color);
+                const rgb2 = this.hexToRgb(color2.color);
+                
+                return {
+                    r: (rgb1.r + (rgb2.r - rgb1.r) * t) / 255,
+                    g: (rgb1.g + (rgb2.g - rgb1.g) * t) / 255,
+                    b: (rgb1.b + (rgb2.b - rgb1.b) * t) / 255
+                };
+            }
+
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : { r: 0, g: 0, b: 0 };
+            }
+
+            setupColorScale() {
+                const canvas = this.renderer.domElement;
+                
+                this.colorScale = new ColorScale({
+                    canvas: canvas,
+                    x: window.innerWidth - 100,
+                    y: 50,
+                    width: 25,
+                    height: 180,
+                    min: -2.0,
+                    max: 2.0,
+                    borderWidth: 1,
+                    attributeName: 'Height (m)',
+                    orientation: 'vertical',
+                    colorStops: colorSchemes.viridis,
+                    textColor: '#ffffff',
+                    fontSize: 12,
+                    fontFamily: 'Arial'
+                });
+            }
+
+            setupControls() {
+                // Simple mouse controls
+                let mouseDown = false;
+                let mouseX = 0;
+                let mouseY = 0;
+
+                const canvas = this.renderer.domElement;
+
+                canvas.addEventListener('mousedown', (event) => {
+                    mouseDown = true;
+                    mouseX = event.clientX;
+                    mouseY = event.clientY;
+                });
+
+                canvas.addEventListener('mouseup', () => {
+                    mouseDown = false;
+                });
+
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!mouseDown) return;
+
+                    const deltaX = event.clientX - mouseX;
+                    const deltaY = event.clientY - mouseY;
+
+                    if (this.mesh) {
+                        this.mesh.rotation.y += deltaX * 0.01;
+                        this.mesh.rotation.x += deltaY * 0.01;
+                    }
+
+                    mouseX = event.clientX;
+                    mouseY = event.clientY;
+                });
+
+                canvas.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    this.camera.position.z += event.deltaY * 0.01;
+                    this.camera.position.z = Math.max(2, Math.min(10, this.camera.position.z));
+                });
+            }
+
+            setupEventListeners() {
+                // Animation toggle
+                document.getElementById('toggleAnimation').addEventListener('click', () => {
+                    this.isAnimating = !this.isAnimating;
+                    document.getElementById('toggleAnimation').textContent = 
+                        this.isAnimating ? 'Stop Animation' : 'Start Animation';
+                });
+
+                // Geometry change
+                document.getElementById('geometryType').addEventListener('change', (e) => {
+                    this.createGeometry(e.target.value);
+                });
+
+                // Material change
+                document.getElementById('materialType').addEventListener('change', (e) => {
+                    this.updateMaterial(e.target.value);
+                });
+
+                // ColorScale controls
+                document.getElementById('updateColorScale').addEventListener('click', () => {
+                    this.updateColorScaleSettings();
+                });
+
+                document.getElementById('toggleColorScale').addEventListener('click', () => {
+                    this.colorScale.toggle();
+                });
+
+                // Update ColorScale when color scheme changes
+                document.getElementById('colorScheme').addEventListener('change', () => {
+                    this.updateColorScaleSettings();
+                    // Also update 3D object colors if using height-based material
+                    const materialType = document.getElementById('materialType').value;
+                    if (materialType === 'height') {
+                        this.updateMaterial('height');
+                    }
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    
+                    if (this.colorScale) {
+                        this.colorScale.resize(window.innerWidth, window.innerHeight);
+                        this.updateColorScalePosition();
+                    }
+                });
+            }
+
+            updateColorScaleSettings() {
+                const position = document.getElementById('scalePosition').value;
+                const orientation = document.getElementById('scaleOrientation').value;
+                const min = parseFloat(document.getElementById('minValue').value);
+                const max = parseFloat(document.getElementById('maxValue').value);
+                const attributeName = document.getElementById('attributeName').value;
+                const colorScheme = document.getElementById('colorScheme').value;
+
+                this.colorScale.updateOrientation(orientation);
+                this.colorScale.updateRange(min, max);
+                this.colorScale.updateAttributeName(attributeName);
+                this.colorScale.updateColorStops(colorSchemes[colorScheme]);
+                
+                this.updateColorScalePosition(position);
+            }
+
+            updateColorScalePosition(position = null) {
+                if (!position) {
+                    position = document.getElementById('scalePosition').value;
+                }
+
+                const orientation = document.getElementById('scaleOrientation').value;
+                const width = orientation === 'vertical' ? 25 : 180;
+                const height = orientation === 'vertical' ? 180 : 25;
+                const margin = 50;
+                const left = 100
+
+                let x, y;
+                switch (position) {
+                    case 'top-right':
+                        x = window.innerWidth - left //- width - margin;
+                        y = margin;
+                        break;
+                    case 'top-left':
+                        x = margin;
+                        y = margin;
+                        break;
+                    case 'bottom-right':
+                        x = window.innerWidth -left //- width - margin;
+                        y = window.innerHeight - height - margin;
+                        break;
+                    case 'bottom-left':
+                        x = margin;
+                        y = window.innerHeight - height - margin;
+                        break;
+                }
+
+                this.colorScale.updatePosition(x, y);
+                this.colorScale.updateSize(width, height);
+            }
+
+            render() {
+                if (this.isAnimating && this.mesh) {
+                    this.mesh.rotation.x += 0.01;
+                    this.mesh.rotation.y += 0.01;
+                }
+
+                this.renderer.render(this.scene, this.camera);
+                this.colorScale?.redraw();
+                
+                requestAnimationFrame(() => this.render());
+            }
+        }
+
+        // Initialize the demo
+        new ThreeJSDemo();
+    </script>
+</body>
+</html>
