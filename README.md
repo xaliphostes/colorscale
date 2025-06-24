@@ -2,6 +2,10 @@
 
 A TypeScript-based 2D ColorScale overlay component that can be rendered on top of any Canvas (2D or WebGL/3D) rendering without interfering with the underlying graphics.
 
+<center>
+    <img src="screen.png" width="400"/>
+</center>
+
 ## Features
 
 - **Overlay Architecture**: Non-destructive overlay that sits on top of existing canvas content
