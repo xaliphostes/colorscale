@@ -107,7 +107,7 @@ export class ColorScale {
 
         // Draw background with slight padding and rounded corners
         if (backgroundColor !== 'transparent') {
-            const padding = 8;
+            const padding = 1;
             this.ctx.fillStyle = backgroundColor;
             this.roundRect(x - padding, y - padding, width + padding * 2, height + padding * 2, 1);
             this.ctx.fill();
